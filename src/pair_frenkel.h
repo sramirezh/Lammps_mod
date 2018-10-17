@@ -32,7 +32,7 @@ class PairFrenkel : public Pair {      //Inherit all the public and protected me
   void settings(int, char **);
   void coeff(int, char **);
   void init_style();
-  double init_one(int, int);
+  // double init_one(int, int);
   void write_restart(FILE *);
   void read_restart(FILE *);
   void write_restart_settings(FILE *);
@@ -42,9 +42,9 @@ class PairFrenkel : public Pair {      //Inherit all the public and protected me
   double single(int, int, int, int, double, double, double, double &);
   void *extract(const char *, int &);
 
-  void compute_inner();
-  void compute_middle();
-  void compute_outer(int, int);
+  // void compute_inner();
+  // void compute_middle();
+  // void compute_outer(int, int);
 
  protected:
   double cut_global;

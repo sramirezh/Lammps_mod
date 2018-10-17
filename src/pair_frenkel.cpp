@@ -91,7 +91,7 @@ void PairFrenkel::compute(int eflag, int vflag)
 
   // loop over neighbors of my atoms
 
-
+  n = 4.0;
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
@@ -115,8 +115,7 @@ void PairFrenkel::compute(int eflag, int vflag)
 
       if (rsq < cutsq[itype][jtype]) {
         r2inv = 1.0/rsq;
-
-        alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0))
+        alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0));
 
         // r6inv = r2inv*r2inv*r2inv;
         // forcelj = r6inv * (lj1[itype][jtype]*r6inv - lj2[itype][jtype]);
@@ -136,7 +135,7 @@ void PairFrenkel::compute(int eflag, int vflag)
           // evdwl = r6inv*(lj3[itype][jtype]*r6inv-lj4[itype][jtype]) -
           //   offset[itype][jtype];
           // evdwl *= factor_lj;
-          evdwl=alpha*epsilon*((sigma/r)**2-1)*((Rc/r)**2-1)**(2*n)
+          evdwl=alpha*epsilon[i][j]*(sigma[i][j]*sigma[i][j]*r2inv-1.0)*pow((cutsq[itype][jtype]*r2inv-1.0),(2*n));
         }
 
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
@@ -415,7 +414,7 @@ void PairFrenkel::read_restart_settings(FILE *fp)
 void PairFrenkel::write_data(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
-    fprintf(fp,"%d %g %g %g\n",i,epsilon[i][i],sigma[i][i]);
+    fprintf(fp,"%d %g %g \n",i,epsilon[i][i],sigma[i][i]);
 }
 
 /* ----------------------------------------------------------------------
@@ -426,7 +425,7 @@ void PairFrenkel::write_data_all(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
     for (int j = i; j <= atom->ntypes; j++)
-      fprintf(fp,"%d %d %g %g %g %g\n",i,j,epsilon[i][j],sigma[i][j],cut[i][j]);
+      fprintf(fp,"%d %d %g %g %g\n",i,j,epsilon[i][j],sigma[i][j],cut[i][j]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -436,8 +435,10 @@ double PairFrenkel::single(int i, int j, int itype, int jtype, double rsq,
                          double &fforce)
 {
   double r2inv,r6inv,alpha,phifrenkel;
+  int n;
+  n = 4.0;
   r2inv = 1.0/rsq;
-  alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0))
+  alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0));
 
   fforce = 0;
 
@@ -445,7 +446,7 @@ double PairFrenkel::single(int i, int j, int itype, int jtype, double rsq,
   // r6inv = r2inv*r2inv*r2inv;
   // forcelj = r6inv * (lj1[itype][jtype]*r6inv - lj2[itype][jtype]);
   // fforce = factor_lj*forcelj*r2inv;
-  alpha*epsilon*((sigma/r)**2-1)*((Rc/r)**2-1)**(2*n)
+  phifrenkel=0;
 
   return phifrenkel;
 }
