@@ -266,64 +266,64 @@ void PairFrenkel::init_style()
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-// double PairFrenkel::init_one(int i, int j)
-// {
-//   if (setflag[i][j] == 0) {
-//     epsilon[i][j] = mix_energy(epsilon[i][i],epsilon[j][j],
-//                                sigma[i][i],sigma[j][j]);
-//     sigma[i][j] = mix_distance(sigma[i][i],sigma[j][j]);
-//     cut[i][j] = mix_distance(cut[i][i],cut[j][j]);
-//   }
-//
-//   lj1[i][j] = 48.0 * epsilon[i][j] * pow(sigma[i][j],12.0);
-//   lj2[i][j] = 24.0 * epsilon[i][j] * pow(sigma[i][j],6.0);
-//   lj3[i][j] = 4.0 * epsilon[i][j] * pow(sigma[i][j],12.0);
-//   lj4[i][j] = 4.0 * epsilon[i][j] * pow(sigma[i][j],6.0);
-//
-//   if (offset_flag && (cut[i][j] > 0.0)) {
-//     double ratio = sigma[i][j] / cut[i][j];
-//     offset[i][j] = 4.0 * epsilon[i][j] * (pow(ratio,12.0) - pow(ratio,6.0));
-//   } else offset[i][j] = 0.0;
-//
-//   lj1[j][i] = lj1[i][j];
-//   lj2[j][i] = lj2[i][j];
-//   lj3[j][i] = lj3[i][j];
-//   lj4[j][i] = lj4[i][j];
-//   offset[j][i] = offset[i][j];
-//
-//   // check interior rRESPA cutoff
-//
-//   if (cut_respa && cut[i][j] < cut_respa[3])
-//     error->all(FLERR,"Pair cutoff < Respa interior cutoff");
-//
-//   // compute I,J contribution to long-range tail correction
-//   // count total # of atoms of type I and J via Allreduce
-//
-//   if (tail_flag) {
-//     int *type = atom->type;
-//     int nlocal = atom->nlocal;
-//
-//     double count[2],all[2];
-//     count[0] = count[1] = 0.0;
-//     for (int k = 0; k < nlocal; k++) {
-//       if (type[k] == i) count[0] += 1.0;
-//       if (type[k] == j) count[1] += 1.0;
-//     }
-//     MPI_Allreduce(count,all,2,MPI_DOUBLE,MPI_SUM,world);
-//
-//     double sig2 = sigma[i][j]*sigma[i][j];
-//     double sig6 = sig2*sig2*sig2;
-//     double rc3 = cut[i][j]*cut[i][j]*cut[i][j];
-//     double rc6 = rc3*rc3;
-//     double rc9 = rc3*rc6;
-//     etail_ij = 8.0*MY_PI*all[0]*all[1]*epsilon[i][j] *
-//       sig6 * (sig6 - 3.0*rc6) / (9.0*rc9);
-//     ptail_ij = 16.0*MY_PI*all[0]*all[1]*epsilon[i][j] *
-//       sig6 * (2.0*sig6 - 3.0*rc6) / (9.0*rc9);
-//   }
-//
-//   return cut[i][j];
-// }
+double PairFrenkel::init_one(int i, int j)
+{
+  if (setflag[i][j] == 0) {
+    epsilon[i][j] = mix_energy(epsilon[i][i],epsilon[j][j],
+                               sigma[i][i],sigma[j][j]);
+    sigma[i][j] = mix_distance(sigma[i][i],sigma[j][j]);
+    cut[i][j] = mix_distance(cut[i][i],cut[j][j]);
+  }
+
+  // lj1[i][j] = 48.0 * epsilon[i][j] * pow(sigma[i][j],12.0);
+  // lj2[i][j] = 24.0 * epsilon[i][j] * pow(sigma[i][j],6.0);
+  // lj3[i][j] = 4.0 * epsilon[i][j] * pow(sigma[i][j],12.0);
+  // lj4[i][j] = 4.0 * epsilon[i][j] * pow(sigma[i][j],6.0);
+
+  // if (offset_flag && (cut[i][j] > 0.0)) {
+  //   double ratio = sigma[i][j] / cut[i][j];
+  //   offset[i][j] = 4.0 * epsilon[i][j] * (pow(ratio,12.0) - pow(ratio,6.0));
+  // } else offset[i][j] = 0.0;
+
+  // lj1[j][i] = lj1[i][j];
+  // lj2[j][i] = lj2[i][j];
+  // lj3[j][i] = lj3[i][j];
+  // lj4[j][i] = lj4[i][j];
+  // offset[j][i] = offset[i][j];
+
+  // check interior rRESPA cutoff
+
+  if (cut_respa && cut[i][j] < cut_respa[3])
+    error->all(FLERR,"Pair cutoff < Respa interior cutoff");
+
+  // compute I,J contribution to long-range tail correction
+  // count total # of atoms of type I and J via Allreduce
+
+  // if (tail_flag) {
+  //   int *type = atom->type;
+  //   int nlocal = atom->nlocal;
+  //
+  //   double count[2],all[2];
+  //   count[0] = count[1] = 0.0;
+  //   for (int k = 0; k < nlocal; k++) {
+  //     if (type[k] == i) count[0] += 1.0;
+  //     if (type[k] == j) count[1] += 1.0;
+  //   }
+  //   MPI_Allreduce(count,all,2,MPI_DOUBLE,MPI_SUM,world);
+  //
+  //   double sig2 = sigma[i][j]*sigma[i][j];
+  //   double sig6 = sig2*sig2*sig2;
+  //   double rc3 = cut[i][j]*cut[i][j]*cut[i][j];
+  //   double rc6 = rc3*rc3;
+  //   double rc9 = rc3*rc6;
+  //   etail_ij = 8.0*MY_PI*all[0]*all[1]*epsilon[i][j] *
+  //     sig6 * (sig6 - 3.0*rc6) / (9.0*rc9);
+  //   ptail_ij = 16.0*MY_PI*all[0]*all[1]*epsilon[i][j] *
+  //     sig6 * (2.0*sig6 - 3.0*rc6) / (9.0*rc9);
+  // }
+
+  return cut[i][j];
+}
 
 /* ----------------------------------------------------------------------
    proc 0 writes to restart file

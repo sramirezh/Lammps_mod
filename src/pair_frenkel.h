@@ -32,7 +32,7 @@ class PairFrenkel : public Pair {      //Inherit all the public and protected me
   void settings(int, char **);
   void coeff(int, char **);
   void init_style();
-  // double init_one(int, int);
+  double init_one(int, int);
   void write_restart(FILE *);
   void read_restart(FILE *);
   void write_restart_settings(FILE *);
