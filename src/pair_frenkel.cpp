@@ -69,8 +69,9 @@ void PairFrenkel::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum,itype,jtype;
   double xtmp,ytmp,ztmp,delx,dely,delz,evdwl,fpair;
-  double rsq,r2inv,r6inv,forcelj,factor_lj;
+  double rsq,r2inv,alpha,forcelj,factor_lj;
   int *ilist,*jlist,*numneigh,**firstneigh;
+  int n;
 
   evdwl = 0.0;
   if (eflag || vflag) ev_setup(eflag,vflag);
@@ -89,6 +90,8 @@ void PairFrenkel::compute(int eflag, int vflag)
   firstneigh = list->firstneigh;
 
   // loop over neighbors of my atoms
+
+
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
@@ -112,10 +115,14 @@ void PairFrenkel::compute(int eflag, int vflag)
 
       if (rsq < cutsq[itype][jtype]) {
         r2inv = 1.0/rsq;
-        r6inv = r2inv*r2inv*r2inv;
-        forcelj = r6inv * (lj1[itype][jtype]*r6inv - lj2[itype][jtype]);
-        fpair = factor_lj*forcelj*r2inv;
 
+        alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0))
+
+        // r6inv = r2inv*r2inv*r2inv;
+        // forcelj = r6inv * (lj1[itype][jtype]*r6inv - lj2[itype][jtype]);
+        // fpair = factor_lj*forcelj*r2inv;
+
+        fpair=0;
         f[i][0] += delx*fpair;
         f[i][1] += dely*fpair;
         f[i][2] += delz*fpair;
@@ -126,9 +133,10 @@ void PairFrenkel::compute(int eflag, int vflag)
         }
 
         if (eflag) {
-          evdwl = r6inv*(lj3[itype][jtype]*r6inv-lj4[itype][jtype]) -
-            offset[itype][jtype];
-          evdwl *= factor_lj;
+          // evdwl = r6inv*(lj3[itype][jtype]*r6inv-lj4[itype][jtype]) -
+          //   offset[itype][jtype];
+          // evdwl *= factor_lj;
+          evdwl=alpha*epsilon*((sigma/r)**2-1)*((Rc/r)**2-1)**(2*n)
         }
 
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
@@ -164,7 +172,7 @@ void PairFrenkel::allocate()
   memory->create(lj3,n+1,n+1,"pair:lj3");
   memory->create(lj4,n+1,n+1,"pair:lj4");*/
   memory->create(offset,n+1,n+1,"pair:offset");
-  memory->create(alpha,n+1,n+1,"pair:alpha")
+  //memory->create(alpha,n+1,n+1,"pair:alpha")
 }
 
 /* ----------------------------------------------------------------------
@@ -193,7 +201,7 @@ void PairFrenkel::settings(int narg, char **arg)
 
 void PairFrenkel::coeff(int narg, char **arg)
 {
-  if (narg != 6 )
+  if (narg != 5 )
     error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
 
@@ -203,10 +211,10 @@ void PairFrenkel::coeff(int narg, char **arg)
 
   double epsilon_one = force->numeric(FLERR,arg[2]);
   double sigma_one = force->numeric(FLERR,arg[3]);
-  double alpha_one = force->numeric(FLERR,arg[4])
+  //double alpha_one = force->numeric(FLERR,arg[4])
 
   double cut_one = cut_global;
-  if (narg == 6) cut_one = force->numeric(FLERR,arg[5]);
+  if (narg == 5) cut_one = force->numeric(FLERR,arg[4]);
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
@@ -214,7 +222,7 @@ void PairFrenkel::coeff(int narg, char **arg)
       epsilon[i][j] = epsilon_one;
       sigma[i][j] = sigma_one;
       cut[i][j] = cut_one;
-      alpha[i][j] = alpha_one;
+      //alpha[i][j] = alpha_one;
       setflag[i][j] = 1;
       count++;
     }
@@ -334,7 +342,7 @@ void PairFrenkel::write_restart(FILE *fp)
         fwrite(&epsilon[i][j],sizeof(double),1,fp);
         fwrite(&sigma[i][j],sizeof(double),1,fp);
         fwrite(&cut[i][j],sizeof(double),1,fp);
-        fwrite(&alpha[i][j],sizeof(double,1,fp));
+        //fwrite(&alpha[i][j],sizeof(double,1,fp));
       }
     }
 }
@@ -359,12 +367,12 @@ void PairFrenkel::read_restart(FILE *fp)
           fread(&epsilon[i][j],sizeof(double),1,fp);
           fread(&sigma[i][j],sizeof(double),1,fp);
           fread(&cut[i][j],sizeof(double),1,fp);
-          fread(&alpha[i][j],sizeof(double,1,fp));
+          //fread(&alpha[i][j],sizeof(double,1,fp));
         }
         MPI_Bcast(&epsilon[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&sigma[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&cut[i][j],1,MPI_DOUBLE,0,world);
-        MPI_Bcast(&alpha[i][j],1,MPI_DOUBLE,0,world);
+        //MPI_Bcast(&alpha[i][j],1,MPI_DOUBLE,0,world);
       }
     }
 }
@@ -407,7 +415,7 @@ void PairFrenkel::read_restart_settings(FILE *fp)
 void PairFrenkel::write_data(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
-    fprintf(fp,"%d %g %g %g\n",i,epsilon[i][i],sigma[i][i],alpha[i][i]);
+    fprintf(fp,"%d %g %g %g\n",i,epsilon[i][i],sigma[i][i]);
 }
 
 /* ----------------------------------------------------------------------
@@ -418,7 +426,7 @@ void PairFrenkel::write_data_all(FILE *fp)
 {
   for (int i = 1; i <= atom->ntypes; i++)
     for (int j = i; j <= atom->ntypes; j++)
-      fprintf(fp,"%d %d %g %g %g %g\n",i,j,epsilon[i][j],sigma[i][j],cut[i][j],alpha[i][j]);
+      fprintf(fp,"%d %d %g %g %g %g\n",i,j,epsilon[i][j],sigma[i][j],cut[i][j]);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -427,16 +435,19 @@ double PairFrenkel::single(int i, int j, int itype, int jtype, double rsq,
                          double factor_coul, double factor_lj,
                          double &fforce)
 {
-  double r2inv,r6inv,forcelj,philj;
-
+  double r2inv,r6inv,alpha,phifrenkel;
   r2inv = 1.0/rsq;
-  r6inv = r2inv*r2inv*r2inv;
-  forcelj = r6inv * (lj1[itype][jtype]*r6inv - lj2[itype][jtype]);
-  fforce = factor_lj*forcelj*r2inv;
+  alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0))
 
-  philj = r6inv*(lj3[itype][jtype]*r6inv-lj4[itype][jtype]) -
-    offset[itype][jtype];
-  return factor_lj*philj;
+  fforce = 0;
+
+  // r2inv = 1.0/rsq;
+  // r6inv = r2inv*r2inv*r2inv;
+  // forcelj = r6inv * (lj1[itype][jtype]*r6inv - lj2[itype][jtype]);
+  // fforce = factor_lj*forcelj*r2inv;
+  alpha*epsilon*((sigma/r)**2-1)*((Rc/r)**2-1)**(2*n)
+
+  return phifrenkel;
 }
 
 /* ---------------------------------------------------------------------- */
