@@ -405,11 +405,9 @@ double PairFrenkel::single(int i, int j, int itype, int jtype, double rsq,
 {
   double r2inv,r6inv,phifrenkel;
   int n;
+  
   n = n_exponent[itype][jtype];
   r2inv = 1.0/rsq;
-  //alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0));
-
-
 
   phifrenkel=alpha[itype][jtype]*epsilon[itype][jtype]*(sigma[itype][jtype]*sigma[itype][jtype]*r2inv-1.0)*pow((cutsq[itype][jtype]*r2inv-1.0),(2*n));
 
