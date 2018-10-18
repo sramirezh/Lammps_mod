@@ -405,17 +405,13 @@ double PairFrenkel::single(int i, int j, int itype, int jtype, double rsq,
 {
   double r2inv,r6inv,phifrenkel;
   int n;
-  n = 4.0;
+  n = n_exponent[itype][jtype];
   r2inv = 1.0/rsq;
   //alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0));
 
-  fforce = 0;
 
-  // r2inv = 1.0/rsq;
-  // r6inv = r2inv*r2inv*r2inv;
-  // forcelj = r6inv * (lj1[itype][jtype]*r6inv - lj2[itype][jtype]);
-  // fforce = factor_lj*forcelj*r2inv;
-  phifrenkel=0;
+
+  phifrenkel=alpha[itype][jtype]*epsilon[itype][jtype]*(sigma[itype][jtype]*sigma[itype][jtype]*r2inv-1.0)*pow((cutsq[itype][jtype]*r2inv-1.0),(2*n));
 
   return phifrenkel;
 }
