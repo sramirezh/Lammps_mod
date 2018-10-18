@@ -13,6 +13,8 @@
 
 /* ----------------------------------------------------------------------
    Contributing author: Simon Ramirez Hinestrosa
+
+   the arguments to call this potential are the i,j,sigma, epsilon, cut_off radius, n_exponent
 ------------------------------------------------------------------------- */
 
 #include <math.h>
@@ -51,15 +53,12 @@ PairFrenkel::~PairFrenkel()
   if (allocated) {
     memory->destroy(setflag);
     memory->destroy(cutsq);
-
     memory->destroy(cut);
     memory->destroy(epsilon);
     memory->destroy(sigma);
-    memory->destroy(lj1);
-    memory->destroy(lj2);
-    memory->destroy(lj3);
-    memory->destroy(lj4);
     memory->destroy(offset);
+    memory->destroy(alpha);
+    memory->destroy(n_exponent);
   }
 }
 
@@ -69,7 +68,7 @@ void PairFrenkel::compute(int eflag, int vflag)
 {
   int i,j,ii,jj,inum,jnum,itype,jtype;
   double xtmp,ytmp,ztmp,delx,dely,delz,evdwl,fpair;
-  double rsq,r2inv,alpha,forcelj,factor_lj;
+  double rsq,r2inv;
   int *ilist,*jlist,*numneigh,**firstneigh;
   int n;
 
@@ -102,10 +101,9 @@ void PairFrenkel::compute(int eflag, int vflag)
     jlist = firstneigh[i];
     jnum = numneigh[i];
 
-    printf("inmu %d and ii %d\n",inum,ii );
     for (jj = 0; jj < jnum; jj++) {
       j = jlist[jj];
-      factor_lj = special_lj[sbmask(j)];
+      //factor_lj = special_lj[sbmask(j)];
       j &= NEIGHMASK;
 
       delx = xtmp - x[j][0];
@@ -116,19 +114,19 @@ void PairFrenkel::compute(int eflag, int vflag)
 
       if (rsq < cutsq[itype][jtype]) {
         r2inv = 1.0/rsq;
-        alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0));
+
 
         double Rc_term=cutsq[itype][jtype]*r2inv-1;
         double sigma_term = sigma[itype][jtype]*r2inv-1;
-        double first_term = -alpha*epsilon[itype][jtype];
+        double first_term = -alpha[itype][jtype]*epsilon[itype][jtype];
         double second_term = ((-2.*pow(sigma[itype][jtype],2.0)*pow(rsq,-3./2.)*pow(Rc_term,2.0*n)));
         double third_term = -(cutsq[itype][jtype]*4.0*n*pow(Rc_term,2.0*n-1.0)*sigma_term*pow(rsq,-3./2.));
 
         fpair=first_term*(second_term+third_term);
 
         //
-        printf("the first term is %f , the second %f and the third %f \n",first_term,second_term,third_term );
-        printf("The fpair is  %f\n",fpair );
+        // printf("the first term is %f , the second %f and the third %f \n",first_term,second_term,third_term );
+        // printf("The fpair is  %f\n",fpair );
 
         f[i][0] += delx*fpair;
         f[i][1] += dely*fpair;
@@ -146,9 +144,8 @@ void PairFrenkel::compute(int eflag, int vflag)
           // evdwl = r6inv*(lj3[itype][jtype]*r6inv-lj4[itype][jtype]) -
           //   offset[itype][jtype];
           // evdwl *= factor_lj;
-          printf("Voy a calcular la energia epsilon %f\n",epsilon[itype][itype]);
 
-          evdwl=alpha*epsilon[itype][jtype]*(sigma[itype][jtype]*sigma[itype][jtype]*r2inv-1.0)*pow((cutsq[itype][jtype]*r2inv-1.0),(2*n));
+          evdwl=alpha[itype][jtype]*epsilon[itype][jtype]*(sigma[itype][jtype]*sigma[itype][jtype]*r2inv-1.0)*pow((cutsq[itype][jtype]*r2inv-1.0),(2*n));
         }
 
         if (evflag) ev_tally(i,j,nlocal,newton_pair,
@@ -174,18 +171,14 @@ void PairFrenkel::allocate()
   for (int i = 1; i <= n; i++)
     for (int j = i; j <= n; j++)
       setflag[i][j] = 0;
-
   memory->create(cutsq,n+1,n+1,"pair:cutsq");
-
   memory->create(cut,n+1,n+1,"pair:cut");
   memory->create(epsilon,n+1,n+1,"pair:epsilon");
   memory->create(sigma,n+1,n+1,"pair:sigma");
-  //memory->create(lj1,n+1,n+1,"pair:lj1");
-  // memory->create(lj2,n+1,n+1,"pair:lj2");
-  // memory->create(lj3,n+1,n+1,"pair:lj3");
-  // memory->create(lj4,n+1,n+1,"pair:lj4");
   memory->create(offset,n+1,n+1,"pair:offset");
-  //memory->create(alpha,n+1,n+1,"pair:alpha")
+  memory->create(n_exponent,n+1,n+1,"pair:n_exponent");
+  memory->create(alpha,n+1,n+1,"pair:alpha");
+
 }
 
 /* ----------------------------------------------------------------------
@@ -198,7 +191,6 @@ void PairFrenkel::settings(int narg, char **arg)
   if (narg != 1) error->all(FLERR,"Illegal pair_style command");
 
   cut_global = force->numeric(FLERR,arg[0]);
-  printf(" The cut global is %f\n",cut_global );
 
   // reset cutoffs that have been explicitly set
 
@@ -216,7 +208,7 @@ void PairFrenkel::settings(int narg, char **arg)
 
 void PairFrenkel::coeff(int narg, char **arg)
 {
-  if (narg < 4 || narg > 5  )
+  if (narg < 5 || narg > 6  )
     error->all(FLERR,"Incorrect args for pair coefficients");
   if (!allocated) allocate();
 
@@ -226,10 +218,8 @@ void PairFrenkel::coeff(int narg, char **arg)
 
   double epsilon_one = force->numeric(FLERR,arg[2]);
   double sigma_one = force->numeric(FLERR,arg[3]);
-  //double alpha_one = force->numeric(FLERR,arg[4])
-
-  double cut_one = cut_global;
-  if (narg == 5) cut_one = force->numeric(FLERR,arg[4]);
+  double cut_one = force->numeric(FLERR,arg[4]);
+  double n_exponent_one = force->numeric(FLERR,arg[5]);
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {
@@ -237,7 +227,7 @@ void PairFrenkel::coeff(int narg, char **arg)
       epsilon[i][j] = epsilon_one;
       sigma[i][j] = sigma_one;
       cut[i][j] = cut_one;
-      //alpha[i][j] = alpha_one;
+      n_exponent[i][j] = n_exponent_one;
       setflag[i][j] = 1;
       count++;
     }
@@ -284,60 +274,20 @@ void PairFrenkel::init_style()
 
 double PairFrenkel::init_one(int i, int j)
 {
+
+  double n,cut2;
   if (setflag[i][j] == 0) {
-    printf("IM In the setflag\n" );
     epsilon[i][j] = mix_energy(epsilon[i][i],epsilon[j][j],
                                sigma[i][i],sigma[j][j]);
     sigma[i][j] = mix_distance(sigma[i][i],sigma[j][j]);
     cut[i][j] = mix_distance(cut[i][i],cut[j][j]);
   }
+  n_exponent[i][j] = n_exponent[j][j];
+  n = n_exponent[i][j];
+  cut2=cut[i][j]*cut[i][j];
+  alpha[i][j] = 2*n*cut2*pow(((1.0+2.0*n)/(2.0*n*(cut2-1.0))),(2.0*n+1.0));
+  alpha[j][i] = alpha[i][j];
 
-  // lj1[i][j] = 48.0 * epsilon[i][j] * pow(sigma[i][j],12.0);
-  // lj2[i][j] = 24.0 * epsilon[i][j] * pow(sigma[i][j],6.0);
-  // lj3[i][j] = 4.0 * epsilon[i][j] * pow(sigma[i][j],12.0);
-  // lj4[i][j] = 4.0 * epsilon[i][j] * pow(sigma[i][j],6.0);
-
-  // if (offset_flag && (cut[i][j] > 0.0)) {
-  //   double ratio = sigma[i][j] / cut[i][j];
-  //   offset[i][j] = 4.0 * epsilon[i][j] * (pow(ratio,12.0) - pow(ratio,6.0));
-  // } else offset[i][j] = 0.0;
-
-   //lj1[j][i] = lj1[i][j];
-  // lj2[j][i] = lj2[i][j];
-  // lj3[j][i] = lj3[i][j];
-  // lj4[j][i] = lj4[i][j];
-  // offset[j][i] = offset[i][j];
-
-  // check interior rRESPA cutoff
-
-  // if (cut_respa && cut[i][j] < cut_respa[3])
-  //   error->all(FLERR,"Pair cutoff < Respa interior cutoff");
-
-  // compute I,J contribution to long-range tail correction
-  // count total # of atoms of type I and J via Allreduce
-
-  // if (tail_flag) {
-  //   int *type = atom->type;
-  //   int nlocal = atom->nlocal;
-  //
-  //   double count[2],all[2];
-  //   count[0] = count[1] = 0.0;
-  //   for (int k = 0; k < nlocal; k++) {
-  //     if (type[k] == i) count[0] += 1.0;
-  //     if (type[k] == j) count[1] += 1.0;
-  //   }
-  //   MPI_Allreduce(count,all,2,MPI_DOUBLE,MPI_SUM,world);
-  //
-  //   double sig2 = sigma[i][j]*sigma[i][j];
-  //   double sig6 = sig2*sig2*sig2;
-  //   double rc3 = cut[i][j]*cut[i][j]*cut[i][j];
-  //   double rc6 = rc3*rc3;
-  //   double rc9 = rc3*rc6;
-  //   etail_ij = 8.0*MY_PI*all[0]*all[1]*epsilon[i][j] *
-  //     sig6 * (sig6 - 3.0*rc6) / (9.0*rc9);
-  //   ptail_ij = 16.0*MY_PI*all[0]*all[1]*epsilon[i][j] *
-  //     sig6 * (2.0*sig6 - 3.0*rc6) / (9.0*rc9);
-  // }
   return cut[i][j];
 }
 
@@ -357,7 +307,8 @@ void PairFrenkel::write_restart(FILE *fp)
         fwrite(&epsilon[i][j],sizeof(double),1,fp);
         fwrite(&sigma[i][j],sizeof(double),1,fp);
         fwrite(&cut[i][j],sizeof(double),1,fp);
-        //fwrite(&alpha[i][j],sizeof(double,1,fp));
+        fwrite(&alpha[i][j],sizeof(double),1,fp);
+        fwrite(&n_exponent[i][j],sizeof(double),1,fp);
       }
     }
 }
@@ -382,12 +333,14 @@ void PairFrenkel::read_restart(FILE *fp)
           fread(&epsilon[i][j],sizeof(double),1,fp);
           fread(&sigma[i][j],sizeof(double),1,fp);
           fread(&cut[i][j],sizeof(double),1,fp);
-          //fread(&alpha[i][j],sizeof(double,1,fp));
+          fread(&alpha[i][j],sizeof(double),1,fp);
+          fread(&n_exponent[i][j],sizeof(double),1,fp);
         }
         MPI_Bcast(&epsilon[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&sigma[i][j],1,MPI_DOUBLE,0,world);
         MPI_Bcast(&cut[i][j],1,MPI_DOUBLE,0,world);
-        //MPI_Bcast(&alpha[i][j],1,MPI_DOUBLE,0,world);
+        MPI_Bcast(&alpha[i][j],1,MPI_DOUBLE,0,world);
+        MPI_Bcast(&n_exponent[i][j],1,MPI_DOUBLE,0,world);
       }
     }
 }
@@ -447,14 +400,14 @@ void PairFrenkel::write_data_all(FILE *fp)
 /* ---------------------------------------------------------------------- */
 
 double PairFrenkel::single(int i, int j, int itype, int jtype, double rsq,
-                         double factor_coul, double factor_lj,
+                         double factor_coul,
                          double &fforce)
 {
-  double r2inv,r6inv,alpha,phifrenkel;
+  double r2inv,r6inv,phifrenkel;
   int n;
   n = 4.0;
   r2inv = 1.0/rsq;
-  alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0));
+  //alpha =2*n*cutsq[itype][jtype]*pow(((1.0+2.0*n)/(2.0*n*(cutsq[itype][jtype]-1.0))),(2.0*n+1.0));
 
   fforce = 0;
 
