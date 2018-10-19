@@ -118,9 +118,9 @@ void PairFrenkel::compute(int eflag, int vflag)
 
         double Rc_term=cutsq[itype][jtype]*r2inv-1;
         double sigma_term = sigma[itype][jtype]*r2inv-1;
-        double first_term = -alpha[itype][jtype]*epsilon[itype][jtype];
-        double second_term = ((-2.*pow(sigma[itype][jtype],2.0)*pow(rsq,-3./2.)*pow(Rc_term,2.0*n)));
-        double third_term = -(cutsq[itype][jtype]*4.0*n*pow(Rc_term,2.0*n-1.0)*sigma_term*pow(rsq,-3./2.));
+        double first_term = 2.0*alpha[itype][jtype]*epsilon[itype][jtype]*r2inv*r2inv;
+        double second_term = ((pow(sigma[itype][jtype],2.0)*pow(Rc_term,2.0*n)));
+        double third_term = (2.0*n*cutsq[itype][jtype]*pow(Rc_term,2.0*n-1.0)*sigma_term);
 
         fpair=first_term*(second_term+third_term);
 
@@ -405,7 +405,7 @@ double PairFrenkel::single(int i, int j, int itype, int jtype, double rsq,
 {
   double r2inv,r6inv,phifrenkel;
   int n;
-  
+
   n = n_exponent[itype][jtype];
   r2inv = 1.0/rsq;
 
